@@ -243,6 +243,47 @@ async def main() -> None:
     n_backups = len(list((Path(config.DATA_DIR) / "backups").glob("shop-*.db")))
     assert n_backups == 1, f"ожидается 1 бэкап, найдено {n_backups}"
 
+    # --- хелпер обновления сообщения заказа (текст/фото) ---
+    from app.handlers import admin as admin_mod
+
+    class _FakeMsg:
+        def __init__(self, mode):
+            self.mode = mode
+            self.calls = []
+        async def edit_text(self, text, reply_markup=None):
+            if self.mode == 'photo':
+                raise RuntimeError('no text in photo message')
+            self.calls.append(('text', text))
+        async def edit_caption(self, caption, reply_markup=None):
+            if self.mode == 'photo':
+                self.calls.append(('caption', caption))
+            else:
+                raise RuntimeError('no caption')
+        async def edit_reply_markup(self, reply_markup=None):
+            self.calls.append(('markup',))
+
+    class _FakeCall:
+        def __init__(self, msg):
+            self.message = msg
+
+    msg = _FakeMsg('text')
+    await admin_mod._settle_order_message(_FakeCall(msg), 'тест', 'KB')
+    assert msg.calls[0][0] == 'text', 'текстовое сообщение не обновилось'
+
+    msg = _FakeMsg('photo')
+    await admin_mod._settle_order_message(_FakeCall(msg), 'тест', 'KB')
+    assert msg.calls[0][0] == 'caption', 'фото-сообщение не обновилось через caption'
+
+    class _DeadMsg(_FakeMsg):
+        async def edit_text(self, text, reply_markup=None):
+            raise RuntimeError('x')
+        async def edit_caption(self, caption, reply_markup=None):
+            raise RuntimeError('x')
+        async def edit_reply_markup(self, reply_markup=None):
+            raise RuntimeError('x')
+    await admin_mod._settle_order_message(_FakeCall(_DeadMsg('x')), 'тест', 'KB')  # не должно падать
+    print('OK: _settle_order_message (текст/фото/всё-упало)')
+
     # --- все хендлеры регистрируются ---
     from aiogram import Dispatcher
 
