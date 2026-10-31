@@ -33,7 +33,7 @@ from app import config
 from app.backups import backup_loop
 from app.db import init_db
 from app.handlers import routers
-from app.logs import daily_stats_loop, ensure_all_topics, notify, notify_error, probe_log_chat
+from app.logs import daily_stats_loop, db_diagnostics, ensure_all_topics, notify, notify_error, probe_log_chat
 from app.maintenance import auto_cancel_loop
 from app.variables import load_vars
 
@@ -79,7 +79,7 @@ async def main():
     cancel_loop = asyncio.create_task(auto_cancel_loop(bot))
 
     print("X CORP SHOP БОТ ЗАПУЩЕН")
-    await notify(bot, "SYSTEM", "🚀 Бот запущен")
+    await notify(bot, "SYSTEM", f"🚀 Бот запущен\n{await db_diagnostics()}")
     try:
         await bot.delete_webhook(drop_pending_updates=True)
         await dp.start_polling(bot)

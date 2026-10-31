@@ -78,8 +78,16 @@ ADMIN_IDS        = _get_admin_ids()
 ADMIN_ID         = ADMIN_IDS[0] if ADMIN_IDS else 0  # основной админ (для совместимости)
 
 # --- база данных ---
-# По умолчанию /app/data: на сервере перезапуск переживает только эта папка.
-DATA_DIR         = Path(_get("DATA_DIR", "/app/data")).expanduser()
+# Дефолт — папка data рядом с ботом: обычно именно файлы бота переживают
+# перезапуск на хостингах (в отличие от /app/data). Относительный путь
+# считается от папки проекта, а не от cwd.
+_raw_data_dir    = _get("DATA_DIR", "").strip()
+if _raw_data_dir:
+    DATA_DIR     = Path(_raw_data_dir).expanduser()
+    if not DATA_DIR.is_absolute():
+        DATA_DIR = (PROJECT_ROOT / DATA_DIR).resolve()
+else:
+    DATA_DIR     = (PROJECT_ROOT / "data").resolve()
 DB_NAME          = _get("DB_NAME", "shop.db")
 DB_PATH          = str(DATA_DIR / DB_NAME)
 

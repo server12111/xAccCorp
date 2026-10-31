@@ -366,6 +366,25 @@ async def notify_error(bot: Bot, exc: Exception, context: str = "") -> None:
 # ============================================================
 #  ЕЖЕСУТОЧНАЯ СТАТИСТИКА
 # ============================================================
+async def db_diagnostics() -> str:
+    """Где база и сколько в ней данных — видно сразу после рестарта.
+    Если после перезапуска здесь 'Юзеров: 0' — DATA_DIR указывает на
+    неперсистентную папку хостинга."""
+    from pathlib import Path as _Path
+    p = _Path(config.DB_PATH)
+    try:
+        size_kb = p.stat().st_size / 1024
+    except OSError:
+        size_kb = 0
+    users = await db.count_users()
+    async with db.connect() as conn:
+        orders = (await (await conn.execute('SELECT COUNT(*) FROM orders')).fetchone())[0]
+    return (
+        f"БД: <code>{esc(config.DB_PATH)}</code> ({size_kb:.0f} KB)\n"
+        f"Юзеров: <b>{users}</b> · Заказов: <b>{orders}</b>"
+    )
+
+
 async def build_daily_text() -> str:
     s = await db.stats()
     users = await db.count_users()
