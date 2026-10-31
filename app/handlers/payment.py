@@ -110,11 +110,18 @@ async def cb_pay_balance(call: types.CallbackQuery, bot: Bot):
         f"Отправь трек в поддержку {config.SUPPORT_USERNAME}.",
         back_menu("main"),
     )
+    topup = await db.get_last_topup(call.from_user.id)
+    method_line = "Баланс"
+    if topup:
+        method_line = (
+            f"Баланс (пополнен на {topup['amount_rub']:.2f} ₽ · "
+            f"{esc(topup['payment_method'] or 'не указан')})"
+        )
     await notify(
         bot, "ORDER",
         f"✅ КУПЛЕНО — заказ #{oid} на {o['amount_rub']:.2f} ₽\n"
         f"Трек: <code>{o['track']}</code>\n"
-        f"Способ оплаты: Баланс\n"
+        f"Способ оплаты: {method_line}\n"
         f"Пользователь: {_who(call)}",
     )
     await notify_admins(bot, f"Оплата балансом: заказ #{oid}, пользователь {call.from_user.id}, {o['amount_rub']:.2f} ₽")

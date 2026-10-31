@@ -432,6 +432,19 @@ async def cancel_stale_orders(hours) -> list:
         return [dict(r) for r in rows]
 
 
+async def get_last_topup(uid):
+    """Последнее подтверждённое пополнение баланса юзера (для пометки при покупке)."""
+    async with connect() as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT amount_rub, payment_method FROM orders "
+            "WHERE user_id=? AND product_id=0 AND status IN ('paid','issued','completed') "
+            "ORDER BY updated_at DESC LIMIT 1",
+            (uid,),
+        ) as c:
+            return await c.fetchone()
+
+
 async def top_products(limit=3):
     async with connect() as db:
         db.row_factory = aiosqlite.Row
