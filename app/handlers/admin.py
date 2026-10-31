@@ -343,7 +343,12 @@ async def ap_price(message: types.Message, state: FSMContext):
 async def ap_cat(message: types.Message, state: FSMContext):
     if await _cancel_if_command(message, state):
         raise SkipHandler
-    await state.update_data(category=(message.text or "other").strip().lower())
+    cat = (message.text or "").strip().lower()
+    # Категория попадает в callback-кнопки пагинации — без пробелов и спецсимволов
+    if not cat or len(cat) > 20 or any(ch in cat for ch in " :/\\?#@$"):
+        await message.answer("Категория — одним словом, латиница/цифры (например ru, usa, eu, other). Попробуй ещё раз:")
+        return
+    await state.update_data(category=cat)
     await state.set_state(AddProduct.stock)
     await message.answer("Количество в наличии:")
 
@@ -824,6 +829,9 @@ async def cb_ticket_reply(call: types.CallbackQuery, state: FSMContext):
         return
     await state.update_data(ticket_id=tid, ticket_user=ticket["user_id"])
     await state.set_state(TicketReplyState.answer)
+    # В форуме отвечаем в той же теме, где нажали кнопку (иначе уйдёт в «Общий»)
+    thread = getattr(call.message, "message_thread_id", None)
+    kwargs = {"message_thread_id": thread} if thread else {}
     await call.message.answer(
         f"✏ <b>Ответ на обращение #{tid}</b>\n"
         f"Кому: <code>{ticket['user_id']}</code>\n"
@@ -832,6 +840,7 @@ async def cb_ticket_reply(call: types.CallbackQuery, state: FSMContext):
         f"━━━━━━━━━━━━━━━━━━\n"
         f"Отправь ответ одним сообщением прямо сюда.\n"
         f"(команда — отменит ввод)",
+        **kwargs,
     )
     await call.answer()
 
@@ -846,19 +855,25 @@ async def process_ticket_reply(message: types.Message, state: FSMContext, bot: B
     await state.clear()
     tid = data.get("ticket_id")
     target = data.get("ticket_user")
+    # Ответ администратора пишется в той же теме форума, где тикет
+    thread = getattr(message, "message_thread_id", None)
+    kwargs = {"message_thread_id": thread} if thread else {}
     if not target:
-        await message.answer("Сессия истекла — нажми «✏ Ответить» на обращении заново.")
+        await message.answer("Сессия истекла — нажми «✏ Ответить» на обращении заново.", **kwargs)
         return
     body = (message.text or "").strip()
     if not body:
-        await message.answer("Пустой ответ — нажми «✏ Ответить» и напиши текст.")
+        await message.answer("Пустой ответ — нажми «✏ Ответить» и напиши текст.", **kwargs)
         return
     await db.set_ticket_status(tid, "answered")
     delivered = await safe_send(
         bot, target,
         f"<b>Ответ поддержки</b> (обращение #{tid})\n\n{escape(body)}",
     )
-    await message.answer("✅ Ответ отправлен пользователю." if delivered else "❌ Не доставлен: пользователь не писал боту (/start).")
+    await message.answer(
+        "✅ Ответ отправлен пользователю." if delivered else "❌ Не доставлен: пользователь не писал боту (/start).",
+        **kwargs,
+    )
     await notify(bot, "SUPPORT", f"Ответ на обращение #{tid} отправлен пользователю <code>{target}</code>:\n{esc(body[:400])}")
 
 
