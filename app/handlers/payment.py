@@ -112,8 +112,10 @@ async def cb_pay_balance(call: types.CallbackQuery, bot: Bot):
     )
     await notify(
         bot, "ORDER",
-        f"✅ КУПЛЕНО с баланса — заказ #{oid} на {o['amount_rub']:.2f} ₽\n"
-        f"Трек: <code>{o['track']}</code>\nПользователь: {_who(call)}",
+        f"✅ КУПЛЕНО — заказ #{oid} на {o['amount_rub']:.2f} ₽\n"
+        f"Трек: <code>{o['track']}</code>\n"
+        f"Способ оплаты: Баланс\n"
+        f"Пользователь: {_who(call)}",
     )
     await notify_admins(bot, f"Оплата балансом: заказ #{oid}, пользователь {call.from_user.id}, {o['amount_rub']:.2f} ₽")
     await call.answer("Оплачено")
@@ -182,8 +184,10 @@ async def cb_check_crypto(call: types.CallbackQuery, bot: Bot):
     if o["product_id"]:
         await notify(
             bot, "ORDER",
-            f"✅ КУПЛЕНО (CryptoBot) — заказ #{oid} на {o['amount_usd']:.2f} $\n"
-            f"Товар: {esc(o['product_name'])}\nПользователь: {_who(call)}",
+            f"✅ КУПЛЕНО — заказ #{oid} на {o['amount_usd']:.2f} $\n"
+            f"Товар: {esc(o['product_name'])}\n"
+            f"Способ оплаты: CryptoBot\n"
+            f"Пользователь: {_who(call)}",
         )
     else:
         await notify(
@@ -259,8 +263,10 @@ async def cb_check_xrocket(call: types.CallbackQuery, bot: Bot):
     if o["product_id"]:
         await notify(
             bot, "ORDER",
-            f"✅ КУПЛЕНО (xRocket) — заказ #{oid} на {o['amount_usd']:.2f} $\n"
-            f"Товар: {esc(o['product_name'])}\nПользователь: {_who(call)}",
+            f"✅ КУПЛЕНО — заказ #{oid} на {o['amount_usd']:.2f} $\n"
+            f"Товар: {esc(o['product_name'])}\n"
+            f"Способ оплаты: xRocket\n"
+            f"Пользователь: {_who(call)}",
         )
     else:
         await notify(

@@ -469,11 +469,12 @@ async def cb_confirm(call: types.CallbackQuery, bot: Bot):
         )
     except Exception:
         pass
+    method = o["payment_method"] if o["payment_method"] not in (None, "", "pending", "TOPUP") else "не указан"
     if o["product_id"]:
         await notify(
             bot, "ORDER",
-            f"✅ КУПЛЕНО (скрин подтвердил админ) — заказ #{oid} "
-            f"({esc(o['product_name'])} · {o['amount_rub']:.2f} ₽)\n"
+            f"✅ КУПЛЕНО — заказ #{oid} ({esc(o['product_name'])} · {o['amount_rub']:.2f} ₽)\n"
+            f"Способ оплаты: {esc(method)} (скрин подтвердил админ)\n"
             f"Покупатель: <code>{o['user_id']}</code>",
         )
     else:
@@ -504,7 +505,9 @@ async def cb_reject(call: types.CallbackQuery, bot: Bot):
         pass
     await notify(
         bot, "ORDER",
-        f"Оплата отклонена — заказ #{oid} ({esc(o['product_name'])})\nПокупатель: <code>{o['user_id']}</code>",
+        f"❌ Оплата отклонена — заказ #{oid} ({esc(o['product_name'])})\n"
+        f"Способ оплаты: {esc(o['payment_method'] or 'не указан')}\n"
+        f"Покупатель: <code>{o['user_id']}</code>",
     )
 
 
@@ -528,7 +531,9 @@ async def cb_issued(call: types.CallbackQuery, bot: Bot):
         pass
     await notify(
         bot, "ORDER",
-        f"Заказ #{oid} ВЫДАН ({esc(o['product_name'])})\nПокупатель: <code>{o['user_id']}</code>",
+        f"📦 Заказ #{oid} ВЫДАН ({esc(o['product_name'])})\n"
+        f"Способ оплаты: {esc(o['payment_method'] or 'не указан')}\n"
+        f"Покупатель: <code>{o['user_id']}</code>",
     )
 
 
