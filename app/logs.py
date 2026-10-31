@@ -30,6 +30,7 @@ log = logging.getLogger("xcorp.logs")
 CATEGORIES = {
     "USER":      ("Пользователи", "👤"),
     "ORDER":     ("Заказы", "🛒"),
+    "CHECKOUT":  ("Оформления", "🧾"),
     "PAYMENT":   ("Оплата", "💰"),
     "STOCK":     ("Товары", "📦"),
     "PROMO":     ("Промокоды", "🎟"),

@@ -150,8 +150,8 @@ async def cb_cart_checkout(call: types.CallbackQuery, bot: Bot):
     total_usd = sum(usd for _, _, usd in made)
     made_lines = "\n".join(f"#{oid} · {esc(name)} · {usd:.2f} $" for oid, name, usd in made[:10])
     await notify(
-        bot, "ORDER",
-        f"Оформлена корзина: {len(made)} заказ(ов) на {total_usd:.2f} $\n"
+        bot, "CHECKOUT",
+        f"🧾 Оформлена корзина: {len(made)} заказ(ов) на {total_usd:.2f} $ — НЕ оплачены\n"
         f"Пользователь: {user_line(call.from_user.id, call.from_user.first_name, call.from_user.username)}\n{made_lines}",
     )
     await call.answer("Заказы созданы")

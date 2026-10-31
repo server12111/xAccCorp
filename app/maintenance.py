@@ -20,8 +20,8 @@ async def cancel_stale(bot: Bot) -> int:
     orders = await db.cancel_stale_orders(config.AUTO_CANCEL_HOURS)
     for o in orders:
         await logs.notify(
-            bot, "ORDER",
-            f"⏰ Заказ #{o['id']} отменён автоматически: не оплачен за {config.AUTO_CANCEL_HOURS} ч\n"
+            bot, "CHECKOUT",
+            f"⏰ Заказ #{o['id']} отменён автоматически: НЕ оплачен за {config.AUTO_CANCEL_HOURS} ч\n"
             f"{logs.esc(o['product_name'])} · {o['amount_rub']:.2f} ₽\n"
             f"Покупатель: <code>{o['user_id']}</code>",
         )

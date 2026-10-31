@@ -464,11 +464,19 @@ async def cb_confirm(call: types.CallbackQuery, bot: Bot):
         )
     except Exception:
         pass
-    await notify(
-        bot, "ORDER",
-        f"Оплата подтверждена вручную — заказ #{oid} ({esc(o['product_name'])} · {o['amount_rub']:.2f} ₽)\n"
-        f"Покупатель: <code>{o['user_id']}</code>",
-    )
+    if o["product_id"]:
+        await notify(
+            bot, "ORDER",
+            f"✅ КУПЛЕНО (скрин подтвердил админ) — заказ #{oid} "
+            f"({esc(o['product_name'])} · {o['amount_rub']:.2f} ₽)\n"
+            f"Покупатель: <code>{o['user_id']}</code>",
+        )
+    else:
+        await notify(
+            bot, "PAYMENT",
+            f"✅ Пополнение подтверждено админом: +{o['amount_rub']:.2f} ₽\n"
+            f"Пользователь: <code>{o['user_id']}</code>",
+        )
 
 
 @router.callback_query(F.data.startswith("adm_reject:"))

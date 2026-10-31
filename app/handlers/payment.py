@@ -63,9 +63,11 @@ async def cb_buy(call: types.CallbackQuery, bot: Bot):
     )
     await edit_or_answer(call, text, payment_methods(oid))
     await notify(
-        bot, "ORDER",
-        f"Новый заказ #{oid}\nТовар: {esc(p['name'])} · {amount_usd:.2f} $\n"
-        f"Трек: <code>{track}</code>\nПользователь: {_who(call)}",
+        bot, "CHECKOUT",
+        f"🧾 Заказ #{oid} оформлен, НЕ оплачен\n"
+        f"Товар: {esc(p['name'])} · {amount_usd:.2f} $\n"
+        f"Трек: <code>{track}</code>\nПользователь: {_who(call)}\n"
+        f"Статус: ждёт оплату",
     )
     await call.answer()
 
@@ -109,8 +111,9 @@ async def cb_pay_balance(call: types.CallbackQuery, bot: Bot):
         back_menu("main"),
     )
     await notify(
-        bot, "PAYMENT",
-        f"Оплата с баланса: заказ #{oid} на {o['amount_rub']:.2f} ₽\nПользователь: {_who(call)}",
+        bot, "ORDER",
+        f"✅ КУПЛЕНО с баланса — заказ #{oid} на {o['amount_rub']:.2f} ₽\n"
+        f"Трек: <code>{o['track']}</code>\nПользователь: {_who(call)}",
     )
     await notify_admins(bot, f"Оплата балансом: заказ #{oid}, пользователь {call.from_user.id}, {o['amount_rub']:.2f} ₽")
     await call.answer("Оплачено")
@@ -176,11 +179,17 @@ async def cb_check_crypto(call: types.CallbackQuery, bot: Bot):
     else:
         success = f"На баланс зачислено <b>{o['amount_rub']:.2f} ₽</b>."
     await edit_or_answer(call, f"<b>ОПЛАЧЕНО</b>\n{success}", back_menu("main"))
-    await notify(
-        bot, "PAYMENT",
-        f"CryptoBot: оплата подтверждена — заказ #{oid} на {o['amount_usd']:.2f} $\n"
-        f"Товар: {esc(o['product_name'])}\nПользователь: {_who(call)}",
-    )
+    if o["product_id"]:
+        await notify(
+            bot, "ORDER",
+            f"✅ КУПЛЕНО (CryptoBot) — заказ #{oid} на {o['amount_usd']:.2f} $\n"
+            f"Товар: {esc(o['product_name'])}\nПользователь: {_who(call)}",
+        )
+    else:
+        await notify(
+            bot, "PAYMENT",
+            f"✅ Пополнение подтверждено (CryptoBot): +{o['amount_rub']:.2f} ₽\nПользователь: {_who(call)}",
+        )
     await notify_admins(
         bot,
         f"<b>Оплата CryptoBot</b>\nЗаказ #{oid}\n"
@@ -247,11 +256,17 @@ async def cb_check_xrocket(call: types.CallbackQuery, bot: Bot):
     else:
         result = f"На баланс зачислено <b>{o['amount_rub']:.2f} ₽</b>."
     await edit_or_answer(call, f"<b>ОПЛАТА ПОДТВЕРЖДЕНА</b>\n{result}", back_menu("main"))
-    await notify(
-        bot, "PAYMENT",
-        f"xRocket: оплата подтверждена — заказ #{oid} на {o['amount_usd']:.2f} $\n"
-        f"Товар: {esc(o['product_name'])}\nПользователь: {_who(call)}",
-    )
+    if o["product_id"]:
+        await notify(
+            bot, "ORDER",
+            f"✅ КУПЛЕНО (xRocket) — заказ #{oid} на {o['amount_usd']:.2f} $\n"
+            f"Товар: {esc(o['product_name'])}\nПользователь: {_who(call)}",
+        )
+    else:
+        await notify(
+            bot, "PAYMENT",
+            f"✅ Пополнение подтверждено (xRocket): +{o['amount_rub']:.2f} ₽\nПользователь: {_who(call)}",
+        )
     await notify_admins(bot, f"xRocket: платёж #{oid} подтверждён, пользователь {call.from_user.id}")
     await call.answer("Оплата подтверждена")
 
@@ -411,7 +426,8 @@ async def cb_cancel_order(call: types.CallbackQuery, bot: Bot):
     await db.set_order_status(oid, "cancelled")
     await edit_or_answer(call, "Заказ отменён.", back_menu("main"))
     await notify(
-        bot, "ORDER",
-        f"Заказ #{oid} отменён ({esc(o['product_name'])} · {o['amount_usd']:.2f} $)\nПользователь: {_who(call)}",
+        bot, "CHECKOUT",
+        f"🧾 Заказ #{oid} отменён юзером (не был оплачен)\n"
+        f"{esc(o['product_name'])} · {o['amount_usd']:.2f} $\nПользователь: {_who(call)}",
     )
     await call.answer()
