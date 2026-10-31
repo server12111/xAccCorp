@@ -80,6 +80,24 @@ async def _cancel_if_command(message: types.Message, state: FSMContext) -> bool:
     return False
 
 
+async def _settle_order_message(call: types.CallbackQuery, text: str, kb):
+    """Обновить сообщение заказа: текст — edit_text, фото (скрин) — edit_caption.
+
+    Иначе после подтверждения оплаты у скрина остаются старые кнопки
+    «Подтвердить/Отклонить», которые уже ничего не делают.
+    """
+    try:
+        await call.message.edit_text(text, reply_markup=kb)
+    except Exception:
+        try:
+            await call.message.edit_caption(caption=text, reply_markup=kb)
+        except Exception:
+            try:
+                await call.message.edit_reply_markup(reply_markup=kb)
+            except Exception:
+                pass
+
+
 # ---------- ГЛАВНАЯ АДМИНКИ ----------
 @router.callback_query(F.data == "admin")
 async def cb_admin(call: types.CallbackQuery, state: FSMContext):
@@ -462,13 +480,7 @@ async def cb_confirm(call: types.CallbackQuery, bot: Bot):
             bot, o["user_id"],
             f"<b>ОПЛАТА ПОДТВЕРЖДЕНА</b>\nНа баланс зачислено {o['amount_rub']:.2f} ₽.",
         )
-    try:
-        await call.message.edit_text(
-            f"Заказ #{oid}: оплата подтверждена.",
-            reply_markup=admin_order_actions(oid, "paid"),
-        )
-    except Exception:
-        pass
+    await _settle_order_message(call, f"Заказ #{oid}: оплата подтверждена.", admin_order_actions(oid, "paid"))
     method = o["payment_method"] if o["payment_method"] not in (None, "", "pending", "TOPUP") else "не указан"
     if o["product_id"]:
         await notify(
@@ -496,13 +508,7 @@ async def cb_reject(call: types.CallbackQuery, bot: Bot):
     await db.set_order_status(oid, "rejected")
     await call.answer("Отклонено")
     await safe_send(bot, o["user_id"], f"Оплата по заказу #{oid} отклонена. Свяжись с поддержкой.")
-    try:
-        await call.message.edit_text(
-            f"Заказ #{oid}: отклонён.",
-            reply_markup=admin_order_actions(oid, "rejected"),
-        )
-    except Exception:
-        pass
+    await _settle_order_message(call, f"Заказ #{oid}: отклонён.", admin_order_actions(oid, "rejected"))
     await notify(
         bot, "ORDER",
         f"❌ Оплата отклонена — заказ #{oid} ({esc(o['product_name'])})\n"
@@ -522,13 +528,7 @@ async def cb_issued(call: types.CallbackQuery, bot: Bot):
     await db.set_order_status(oid, "completed")
     await call.answer("Выдано")
     await safe_send(bot, o["user_id"], f"Заказ #{oid} выдан. Спасибо за покупку.")
-    try:
-        await call.message.edit_text(
-            f"Заказ #{oid}: выдан.",
-            reply_markup=admin_order_actions(oid, "completed"),
-        )
-    except Exception:
-        pass
+    await _settle_order_message(call, f"Заказ #{oid}: выдан.", admin_order_actions(oid, "completed"))
     await notify(
         bot, "ORDER",
         f"📦 Заказ #{oid} ВЫДАН ({esc(o['product_name'])})\n"

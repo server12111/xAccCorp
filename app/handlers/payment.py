@@ -412,9 +412,12 @@ async def process_screenshot(message: types.Message, state: FSMContext, bot: Bot
     from ..keyboards import admin_order_actions
     await notify_admins_photo(bot, file_id, caption=caption,
                               reply_markup=admin_order_actions(oid, "on_review"))
-    await notify(
-        bot, "PAYMENT",
-        f"Скрин оплаты отправлен на проверку (метод {method}) — заказ #{oid} на {o['amount_rub']:.2f} ₽\nПользователь: {_who(message)}",
+    # Скрин с кнопками «Подтвердить/Отклонить» — прямо в тему «💰 Оплата»
+    from ..logs import notify_photo
+    await notify_photo(
+        bot, "PAYMENT", file_id,
+        f"Скрин оплаты — заказ #{oid} ({method}) на {o['amount_rub']:.2f} ₽\nПользователь: {_who(message)}",
+        reply_markup=admin_order_actions(oid, "on_review"),
     )
     await message.answer(
         f"<b>Скрин получен</b>\n━━━━━━━━━━━━━━━━━━\n"

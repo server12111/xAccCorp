@@ -305,6 +305,47 @@ async def notify(bot: Bot, category: str, text: str, reply_markup=None) -> bool:
     return False
 
 
+async def notify_photo(bot: Bot, category: str, photo, caption: str, reply_markup=None) -> bool:
+    """Фото с подписью в лог-группу (в свою тему). Никогда не бросает исключений."""
+    if not config.LOG_CHAT_ID or bot is None:
+        return False
+    if time.time() < _state["muted_until"]:
+        return False
+    title, emoji = CATEGORIES.get(category, ("Лог", "📄"))
+    cap = f"{emoji} <b>{title}</b>\n{caption}"[:1024]
+
+    for attempt in (1, 2):
+        kwargs = {}
+        thread = await get_topic_id(bot, category)
+        if thread:
+            kwargs["message_thread_id"] = thread
+        if reply_markup is not None:
+            kwargs["reply_markup"] = reply_markup
+        try:
+            await bot.send_photo(config.LOG_CHAT_ID, photo=photo, caption=cap, **kwargs)
+            _state["resolved"] = config.LOG_CHAT_ID
+            _state["fails"] = 0
+            return True
+        except TelegramBadRequest as e:
+            err = str(e)
+            m = _MIGRATED_RE.search(err)
+            if m and attempt == 1:
+                config.LOG_CHAT_ID = int(m.group(1))
+                continue
+            if "message thread not found" in err.lower() and attempt == 1:
+                await _invalidate_topic(category)
+                continue
+            log.warning("notify_photo: %s", e)
+        except Exception as e:
+            log.warning("notify_photo: %s", e)
+
+    _state["fails"] += 1
+    if _state["fails"] >= 5:
+        _state["muted_until"] = time.time() + 600
+        _state["fails"] = 0
+    return False
+
+
 async def notify_error(bot: Bot, exc: Exception, context: str = "") -> None:
     """Лог ошибки с троттлингом одинаковых ошибок (10 минут)."""
     if bot is None:
