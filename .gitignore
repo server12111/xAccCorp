@@ -1,0 +1,20 @@
+# === СЕКРЕТЫ: никогда не пушить ===
+.env
+
+# === Локальные данные ===
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+data/
+backups/
+
+# === Python ===
+__pycache__/
+*.py[cod]
+.lint_tmp/
+*.log
+
+# === Служебное ===
+.git/
+Thumbs.db
