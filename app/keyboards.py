@@ -75,13 +75,21 @@ def catalog_categories():
 
 
 def products_list(products, cat="all", page=0, total_pages=1):
-    """Список товаров страницы + навигация (если страниц больше одной)."""
+    """Список товаров страницы + навигация (если страниц больше одной).
+
+    По 2 товара в ряд — иначе длинные названия не читаются.
+    Важно: используем только .row() без .button()/.adjust(), иначе
+    все кнопки сваливаются в одну строку.
+    """
     b = InlineKeyboardBuilder()
-    for p in products:
-        b.button(
-            text=f"{p['name']} | {p['price_usd']}$ | {p['stock']} шт",
-            callback_data=f"prod:{p['id']}",
-        )
+    for i in range(0, len(products), 2):
+        b.row(*[
+            InlineKeyboardButton(
+                text=f"{p['name']} · {p['price_usd']:g}$",
+                callback_data=f"prod:{p['id']}",
+            )
+            for p in products[i:i + 2]
+        ])
     if total_pages > 1:
         nav = []
         if page > 0:
@@ -94,8 +102,9 @@ def products_list(products, cat="all", page=0, total_pages=1):
     b.row(InlineKeyboardButton(text="Назад", callback_data="main"))
     kb = b.as_markup()
     for i in range(len(products)):
-        _style(kb, i, 0, "primary", E_BOOKMARK)
-    _style(kb, len(products) + (1 if total_pages > 1 else 0), 0, None, E_BACK)
+        _style(kb, i // 2, i % 2, "primary", E_BOOKMARK)
+    back_row = (len(products) + 1) // 2 + (1 if total_pages > 1 else 0)
+    _style(kb, back_row, 0, None, E_BACK)
     return kb
 
 

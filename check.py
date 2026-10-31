@@ -136,6 +136,10 @@ async def main() -> None:
                for row in kb.inline_keyboard for btn in row), "нет кнопки следующей страницы"
     keyboards.products_list(products, "ru", 0, 1)
     keyboards.products_list([], "ru", 1, 2)
+    fake5 = [{"id": i, "name": f"Товар{i}", "price_usd": 5} for i in range(1, 6)]
+    rows5 = keyboards.products_list(fake5, "ru", 0, 3).inline_keyboard
+    assert [len(r) for r in rows5] == [2, 2, 1, 3, 1, 1], f"ряды каталога: {[len(r) for r in rows5]}"
+    assert any(getattr(b, "callback_data", "") == "cat:ru:1" for b in rows5[3]), "нет навигации страниц"
     keyboards.product_card(pid)
     keyboards.admin_menu()
     keyboards.admin_products_kb(products)
