@@ -182,6 +182,19 @@ async def main() -> None:
     assert config.LOG_CHAT_ID == 0
     assert "None" not in variables.display("LOG_TOPIC_ID"), "в отображении топика торчит None"
 
+    # --- токены платежек: маска + валидация ---
+    old_token = config.CRYPTO_BOT_TOKEN
+    assert await variables.set_var("CRYPTO_BOT_TOKEN", "short") is not None, "короткий токен принят"
+    test_token = "12345678:AATestToken123"
+    assert await variables.set_var("CRYPTO_BOT_TOKEN", test_token) is None  # bot=None -> без API-проверки
+    disp = variables.display("CRYPTO_BOT_TOKEN")
+    assert test_token not in disp, "полный токен виден в display!"
+    assert disp.startswith("задан") and disp.endswith(test_token[-4:] + ")"), f"маска неверная: {disp}"
+    txt = variables.vars_text()
+    assert test_token not in txt, "полный токен попал на экран переменных!"
+    await variables.reset_var("CRYPTO_BOT_TOKEN")
+    assert config.CRYPTO_BOT_TOKEN == old_token, "сброс токена не вернул значение из .env"
+
     # load_vars восстанавливает сохранённое поверх .env
     await variables.load_vars()
     assert config.CARD_NUMBER == "4111111111111111"

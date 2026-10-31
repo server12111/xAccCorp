@@ -7,11 +7,28 @@
 """
 from html import escape
 
+import aiohttp
+
 from . import config, db
+
+
+async def _check_cryptobot_token(token: str) -> bool:
+    """Crypto Pay API: getMe отвечает ok:true только с валидным токеном."""
+    try:
+        async with aiohttp.ClientSession() as s:
+            async with s.get(
+                "https://pay.crypt.bot/api/getMe",
+                headers={"Crypto-Pay-API-Token": token},
+                timeout=15,
+            ) as r:
+                return bool((await r.json()).get("ok"))
+    except Exception:
+        return False
 
 # ИМЯ: (заголовок, тип, редактируемая?, подсказка)
 # типы: text — строка; number — число; hour — час 0-23;
-#       chat — id чата (проверяется через Telegram); topic — id топика; info — только просмотр
+#       chat — id чата (проверяется через Telegram); topic — id топика;
+#       secret — токен (маскируется, полное значение нигде не показывается); info — только просмотр
 VAR_DEFS = {
     "TON_ADDRESS":      ("TON-адрес для оплаты", "text", True, "Сюда пользователи переводят TON"),
     "CARD_NUMBER":      ("Номер карты", "text", True, "Показывается при оплате картой"),
@@ -20,6 +37,10 @@ VAR_DEFS = {
     "CHANNEL_ID":       ("ID канала (подписка)", "text", True, "Например @xcorpServise — по нему проверяется подписка"),
     "REFERRAL_PERCENT": ("Реферальный процент", "number", True, "0-50, % с покупки приглашённого"),
     "CRYPTO_FEE":       ("Надбавка CryptoBot", "number", True, "0-50, % сверху суммы счёта"),
+    "CRYPTO_BOT_TOKEN": ("Токен CryptoBot (Crypto Pay)", "secret", True,
+                         "Из @CryptoBot → Crypto Pay → Create App. Проверяется через API перед сохранением"),
+    "XROCKET_TOKEN":    ("Токен xRocket Pay", "secret", True,
+                         "Из приложения @xRocketPay → merchants. Применяется сразу"),
     "LOG_CHAT_ID":      ("ID лог-группы", "chat", True, "Куда шлются события; бот проверит чат перед сохранением"),
     "LOG_TOPIC_ID":     ("ID топика лог-группы", "topic", True, "0 или пусто = без топика"),
     "LOG_DAILY_HOUR":   ("Час суточной статистики", "hour", True, "0-23, время сервера"),
@@ -38,6 +59,8 @@ _DEFAULTS = {
     "CHANNEL_ID": config.CHANNEL_ID,
     "REFERRAL_PERCENT": config.REFERRAL_PERCENT,
     "CRYPTO_FEE": config.CRYPTO_FEE,
+    "CRYPTO_BOT_TOKEN": config.CRYPTO_BOT_TOKEN,
+    "XROCKET_TOKEN": config.XROCKET_TOKEN,
     "LOG_CHAT_ID": config.LOG_CHAT_ID,
     "LOG_TOPIC_ID": config.LOG_TOPIC_ID or 0,
     "LOG_DAILY_HOUR": config.LOG_DAILY_HOUR,
@@ -82,6 +105,7 @@ async def load_vars() -> None:
 def display(key) -> str:
     """Человекочитаемое текущее значение."""
     v = getattr(config, key, "")
+    kind = VAR_DEFS[key][1] if key in VAR_DEFS else "text"
     if key == "REFERRAL_PERCENT":
         return f"{float(v):g} %"
     if key == "CRYPTO_FEE":
@@ -92,6 +116,9 @@ def display(key) -> str:
         return "(без топика)" if not v else str(v)
     if key == "LOG_CHAT_ID":
         return str(v) if v else "выключено"
+    if kind == "secret":
+        # Токен никогда не показывается целиком — только хвост
+        return f"задан (····{str(v)[-4:]})" if v else "не задан"
     return str(v)
 
 
@@ -110,8 +137,6 @@ def vars_text() -> str:
         mark = "✏" if editable else "ℹ"
         lines.append(f"{mark} <b>{escape(title)}</b> — <code>{escape(display(key))}</code>")
     lines.append("━━━━━━━━━━━━━━━━━━")
-    lines.append(f"🔑 <b>CryptoBot токен:</b> {'задан' if config.CRYPTO_BOT_TOKEN else 'не задан'}")
-    lines.append(f"🔑 <b>xRocket токен:</b> {'задан' if config.XROCKET_TOKEN else 'не задан'}")
     lines.append("🔑 <b>BOT_TOKEN и админы:</b> скрыты, меняются только в .env")
     return "\n".join(lines)
 
@@ -172,6 +197,25 @@ async def set_var(key, raw, bot=None):
             return "Значение не может быть пустым (отправь '-', чтобы вернуть значение из .env)"
         if key == "SUPPORT_USERNAME" and not raw.startswith("@"):
             raw = "@" + raw.lstrip("@")
+        if kind == "secret":
+            if len(raw) < 8:
+                return "Токен слишком короткий"
+            if key == "CRYPTO_BOT_TOKEN" and bot is not None:
+                # CryptoBot проверяет токен сразу через свой API
+                if not await _check_cryptobot_token(raw):
+                    return "CryptoBot не принял токен. Возьми его в @CryptoBot → Crypto Pay → Create App"
+            if key == "XROCKET_TOKEN" and bot is not None:
+                try:
+                    async with aiohttp.ClientSession() as s:
+                        async with s.get(
+                            f"{config.XROCKET_API}/api/v1/me",
+                            headers={"Authorization": f"Bearer {raw}"},
+                            timeout=15,
+                        ) as r:
+                            if r.status in (401, 403):
+                                return "xRocket не принял токен. Возьми его в приложении @xRocketPay"
+                except Exception:
+                    pass  # сеть недоступна — сохраняем без проверки
         if key == "CHANNEL_ID":
             ok = raw.startswith("@") or (raw.startswith("-100") and raw[4:].isdigit()) or raw.isdigit()
             if not ok:
