@@ -50,6 +50,11 @@ async def check_crypto_invoice(inv_id):
 # ============================================================
 async def create_xrocket_invoice(amount_usdt, description, client_id, user_id):
     if not config.XROCKET_TOKEN: return None, None
+    api = str(config.XROCKET_API or "")
+    # Защита: если в XROCKET_API случайно вставили токен — не строим кривой URL
+    if not api.startswith(("http://", "https://")):
+        logging.error("xRocket: XROCKET_API задан неверно (%r...) — исправь в «Переменных»", api[:20])
+        return None, None
     headers = {"Authorization": f"Bearer {config.XROCKET_TOKEN}", "Accept": "application/json"}
     payload = {"priceAmount": f"{amount_usdt:.2f}", "priceCurrency": "USDT",
                "payoutCurrency": "USDT", "clientInvoiceId": str(client_id),
@@ -67,6 +72,9 @@ async def create_xrocket_invoice(amount_usdt, description, client_id, user_id):
 
 async def check_xrocket_invoice(invoice_id):
     if not config.XROCKET_TOKEN: return False
+    api = str(config.XROCKET_API or "")
+    if not api.startswith(("http://", "https://")):
+        return False
     headers = {"Authorization": f"Bearer {config.XROCKET_TOKEN}", "Accept": "application/json"}
     try:
         async with aiohttp.ClientSession() as session:

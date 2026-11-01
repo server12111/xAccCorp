@@ -40,11 +40,12 @@ VAR_DEFS = {
     "CRYPTO_BOT_TOKEN": ("Токен CryptoBot (Crypto Pay)", "secret", True,
                          "Из @CryptoBot → Crypto Pay → Create App. Проверяется через API перед сохранением"),
     "XROCKET_TOKEN":    ("Токен xRocket Pay", "secret", True,
-                         "Из приложения @xRocketPay → merchants. Применяется сразу"),
+                         "Длинная строка eyJ... из @xRocketPay. Применяется сразу"),
+    "XROCKET_API":      ("Адрес API xRocket", "text", True,
+                         "НЕ ТРОГАТЬ без необходимости! Всегда начинается с https://"),
     "LOG_CHAT_ID":      ("ID лог-группы", "chat", True, "Куда шлются события; бот проверит чат перед сохранением"),
     "LOG_TOPIC_ID":     ("ID топика лог-группы", "topic", True, "0 или пусто = без топика"),
     "LOG_DAILY_HOUR":   ("Час суточной статистики", "hour", True, "0-23, время сервера"),
-    "XROCKET_API":      ("API xRocket", "text", True, "Обычно менять не нужно"),
     "DATA_DIR":         ("Папка базы данных", "info", False, "Меняется только в .env (нужен перезапуск)"),
 }
 
@@ -197,7 +198,13 @@ async def set_var(key, raw, bot=None):
             return "Значение не может быть пустым (отправь '-', чтобы вернуть значение из .env)"
         if key == "SUPPORT_USERNAME" and not raw.startswith("@"):
             raw = "@" + raw.lstrip("@")
+        if key == "XROCKET_API" and not raw.startswith(("http://", "https://")):
+            return "Адрес API должен начинаться с https:// (например https://pay.api.xrocket.exchange). Токен вставляется в «Токен xRocket Pay»"
+        if key == "XROCKET_TOKEN" and raw.startswith(("http://", "https://")):
+            return "Это похоже на адрес API, а не токен. Токен xRocket — длинная строка eyJ..."
         if kind == "secret":
+            if key == "CRYPTO_BOT_TOKEN" and raw.startswith(("http://", "https://")):
+                return "Это похоже на ссылку, а не токен. Токен CryptoBot — из Crypto Pay → Create App"
             if len(raw) < 8:
                 return "Токен слишком короткий"
             if key == "CRYPTO_BOT_TOKEN" and bot is not None:
